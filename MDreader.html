@@ -460,18 +460,27 @@
     replacement: (content) => '\n\n' + content.replace(/\n{2,}/g, '\n') + '\n\n'
   });
 
+  // preview에서 실제 편집(input)이 있었을 때만 true.
+  // 편집 없이 포커스/블러만 해도 Turndown 왕복 변환으로 원본 마크다운이 바뀌는 것을 막는다.
+  let previewDirty = false;
   let previewSyncTimer = null;
+  function syncEditorFromPreview(){
+    editor.value = turndownService.turndown(getMarkdownSourceHtml());
+  }
   function schedulePreviewSync(){
+    previewDirty = true;
     clearTimeout(previewSyncTimer);
     previewSyncTimer = setTimeout(() => {
-      editor.value = turndownService.turndown(getMarkdownSourceHtml());
+      if(!previewDirty) return;
+      syncEditorFromPreview();
       updateStats();
       updateLineNumbers();
     }, 500);
   }
   function flushPreviewSync(){
     clearTimeout(previewSyncTimer);
-    editor.value = turndownService.turndown(getMarkdownSourceHtml());
+    if(!previewDirty) return;
+    syncEditorFromPreview();
     render();
   }
 
@@ -1067,13 +1076,16 @@ function hello(name) {
   }
 
   tableResetBtn.addEventListener('click', () => {
+    // 너비만 초기화한다. preview에 반영 안 된 편집이 있을 때만 마크다운에 동기화.
     clearTimeout(previewSyncTimer);
-    editor.value = turndownService.turndown(getMarkdownSourceHtml());
+    if(previewDirty) syncEditorFromPreview();
     tableColumnWidthsByIndex = [];
     render({captureWidths:false});
   });
 
   function render({captureWidths = true} = {}){
+    clearTimeout(previewSyncTimer);
+    previewDirty = false;
     if(captureWidths) captureTableWidths();
     const raw = marked.parse(editor.value);
     preview.innerHTML = DOMPurify.sanitize(raw);
