@@ -6,6 +6,9 @@
 <title>MD_RENDER — 마크다운 변환기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<!-- 코드 하이라이트 테마: 현재 테마에 맞는 쪽만 media="all"로 활성화 -->
+<link rel="stylesheet" id="hljsThemeDark" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github-dark.min.css" integrity="sha384-wH75j6z1lH97ZOpMOInqhgKzFkAInZPPSPlZpYKYTOqsaizPvhQZmAtLcPKXpLyH" crossorigin="anonymous" referrerpolicy="no-referrer">
+<link rel="stylesheet" id="hljsThemeLight" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/styles/github.min.css" integrity="sha384-eFTL69TLRZTkNfYZOLM+G04821K1qZao/4QLJbet1pP4tcF+fdXq/9CdqAbWRl/L" crossorigin="anonymous" referrerpolicy="no-referrer" media="not all">
 <!-- CDN 스크립트: 정확한 버전 고정 + SRI (npm 패키지 원본 파일 기준 sha384) -->
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js" integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -18,6 +21,9 @@
       const saved = localStorage.getItem('mdrender.theme');
       if(saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
     }catch(e){}
+    const light = document.documentElement.getAttribute('data-theme') === 'light';
+    document.getElementById('hljsThemeDark').media = light ? 'not all' : 'all';
+    document.getElementById('hljsThemeLight').media = light ? 'all' : 'not all';
   })();
 </script>
 <style>
@@ -1215,16 +1221,47 @@ function hello(name) {
   });
 
   // export standalone html
+  const DEFAULT_EXPORT_TITLE = '변환된 문서';
+  const DEFAULT_EXPORT_FILENAME = 'document';
+
+  function escapeHtml(text){
+    return text.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
+  }
+
+  function getFirstHeadingText(){
+    const h1 = preview.querySelector('h1');
+    return h1 ? h1.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
+
+  function toSafeFilename(text){
+    const name = text
+      .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^\.+|[.\s]+$/g, '');
+    const short = Array.from(name).slice(0, 80).join('').trim();
+    if(!short || /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(short)) return DEFAULT_EXPORT_FILENAME;
+    return short;
+  }
+
   document.getElementById('exportBtn').addEventListener('click', () => {
     const theme = document.documentElement.getAttribute('data-theme');
     const styleTag = document.querySelector('style').outerHTML;
-    const fontLink = document.querySelector('link[href*="fonts.googleapis"]').outerHTML;
+    const fontLink = document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis"]').outerHTML;
+    const hljsLink = document.getElementById(theme === 'light' ? 'hljsThemeLight' : 'hljsThemeDark').cloneNode(false);
+    hljsLink.removeAttribute('id');
+    hljsLink.removeAttribute('media');
+    const headingText = getFirstHeadingText();
+    const title = headingText || DEFAULT_EXPORT_TITLE;
+    const filename = (headingText ? toSafeFilename(headingText) : DEFAULT_EXPORT_FILENAME) + '.html';
     const doc = `<!DOCTYPE html>
 <html lang="ko" data-theme="${theme}">
 <head>
 <meta charset="UTF-8">
-<title>변환된 문서</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
 ${fontLink}
+${hljsLink.outerHTML}
 ${styleTag}
 <style>
   html,body{
@@ -1257,6 +1294,9 @@ ${styleTag}
   .markdown-body{
     min-height:auto;
   }
+  @media (max-width:860px){
+    #previewScroll{ padding:24px 16px; }
+  }
 </style>
 </head>
 <body><div class="workspace"><section class="pane preview-pane"><div id="previewScroll"><article class="markdown-body">${getExportArticleHtml()}</article></div></section></div>${getExportResizeScriptTag()}</body>
@@ -1265,7 +1305,7 @@ ${styleTag}
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'document.html';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   });
@@ -1273,6 +1313,8 @@ ${styleTag}
   // theme toggle
   function applyTheme(theme){
     document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('hljsThemeDark').media = theme === 'light' ? 'not all' : 'all';
+    document.getElementById('hljsThemeLight').media = theme === 'light' ? 'all' : 'not all';
     document.getElementById('themeBtn').textContent = theme === 'dark' ? '라이트' : '다크';
   }
   document.getElementById('themeBtn').addEventListener('click', () => {
