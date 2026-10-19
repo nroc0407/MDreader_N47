@@ -6,10 +6,11 @@
 <title>MD_RENDER — 마크다운 변환기</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/turndown/7.0.0/turndown.min.js"></script>
+<!-- CDN 스크립트: 정확한 버전 고정 + SRI (npm 패키지 원본 파일 기준 sha384) -->
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.16/dist/purify.min.js" integrity="sha384-a7SzOxErzJ3ZpQz0zJ32d67dSitNzPcbfybc/ykU9KJhMgZkwqfSxlhhdJRS+XGL" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/highlight.min.js" integrity="sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/turndown@7.0.0/dist/turndown.js" integrity="sha384-pnQQwO3XrYBbRqvz2oMJg6Q/cootLfTk3+FFxJYmls4ApuvzLwdzkOhANd/vAzBB" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
   // 저장된 테마를 렌더링 전에 적용 (깜빡임 방지)
   (function(){
@@ -875,12 +876,13 @@ function hello(name) {
     return makeCleanPreviewClone({forMarkdown:true}).innerHTML;
   }
 
+  // contenteditable preview에 붙여넣은 내용은 render()를 거치지 않으므로 복사/내보내기 직전에 다시 정화한다.
   function getCopyHtml(){
-    return makeCleanPreviewClone().innerHTML;
+    return DOMPurify.sanitize(makeCleanPreviewClone().innerHTML);
   }
 
   function getExportArticleHtml(){
-    return makeCleanPreviewClone().innerHTML;
+    return DOMPurify.sanitize(makeCleanPreviewClone().innerHTML);
   }
 
   function exportResizableTablesScript(){
